@@ -3,6 +3,8 @@ use warnings;
 
 package MooseX::Declare;
 
+use Carp qw( croak );
+
 use aliased 'MooseX::Declare::Syntax::Keyword::Class',      'ClassKeyword';
 use aliased 'MooseX::Declare::Syntax::Keyword::Role',       'RoleKeyword';
 use aliased 'MooseX::Declare::Syntax::Keyword::Namespace',  'NamespaceKeyword';
@@ -12,17 +14,46 @@ use namespace::clean;
 our $VERSION = '0.23';
 
 sub import {
-    my ($class, %args) = @_;
+    my ($class, @args) = @_;
 
     my $caller = caller();
 
     strict->import;
     warnings->import;
 
-    for my $keyword ($class->keywords) {
-        $keyword->setup_for($caller, %args, provided_by => $class);
+    my @import_req = @{ shift(@args) }
+        if @args and ref $args[0] eq 'ARRAY';
+
+    if (my @illegal = grep { not /^-?[a-z0-9_]+$/i } @import_req) {
+        croak "Illegal $class import specifications: ${\join(', ', map qq('$_'), @illegal)}";
+    }
+
+    croak "Expected key/value pairs after optional import specification"
+        if @args % 2;
+    my %args = @args;
+
+    my (%add, %remove);
+    do { /^-(.+)$/ ? $remove{ $1 }++ : $add{ $_ }++ }
+        for @import_req;
+
+    push @{ $args{excluded_keywords} ||= [] }, 
+        keys %remove;
+    push @{ $args{additional_keywords} ||= [] },
+        keys %add;
+    %add = map { ($_ => 1) } @{ $args{additional_keywords} || [] };
+
+    my @keywords = ($class->keywords, grep { $add{ $_->get_identifier } } $class->optional_keywords);
+
+    for my $keyword (@keywords) {
+        $keyword->setup_for(
+            $caller, 
+            %args, 
+            provided_by => $class,
+        );
     }
 }
+
+sub optional_keywords { }
 
 sub keywords {
     ClassKeyword->new(identifier => 'class'),
@@ -231,6 +262,42 @@ although having the same name, do not conflict with each other, because the
 imported C<dump> function will be cleaned during compile time, so only the
 method remains there at run time. If you want to do more esoteric things with
 imports, have a look at the C<clean> keyword and the C<dirty> trait.
+
+=head1 EXCLUDING KEYWORDS
+
+If you don't want to use a certain keyword in a file-scope, you can pass an
+array reference containing exclusions to the import method:
+
+    use MooseX::Declare [qw( -role -around )];
+
+    class Foo extends Bar { # works
+
+        method baz { }      # works
+        around qux { }      # fails
+    }
+
+    role Quux { }           # fails
+
+=head1 OPTIONAL KEYWORDS
+
+You can pass in the names of optional keywords in the array reference that
+contains the L<exclusions|/EXCLUDING KEYWORDS>:
+
+    use MooseX::Declare [qw( -role foo optional_baz )];
+
+    role Bar { }        # fails
+
+    foo Fnord {         # would work, if MX:D provided it
+
+        baz;            # would work, if foo provided it by default
+        optional_baz;   # would work, if foo provided it optionally
+        optional_qux;   # would fail, optional and not requested
+    }
+
+Note that L<MooseX::Declare> currently has no optional keywords, but extensions
+might use this functionality.
+
+If you request a keyword that nobody provides, it will simply not work.
 
 =head1 SEE ALSO
 

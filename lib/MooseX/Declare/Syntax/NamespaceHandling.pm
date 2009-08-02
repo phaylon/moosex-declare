@@ -58,7 +58,7 @@ sub generate_current_stack_item {
     my ($self, $ctx) = @_;
 
     return StackItem->new(
-        identifier    => $self->identifier,
+        identifier    => $self->get_identifier,
         is_dirty      => $ctx->options->{is}{dirty},
         handler       => ref($self),
         namespace     => $ctx->namespace,
@@ -106,10 +106,12 @@ sub parse {
     $ctx->add_preamble_code_parts(
         "package ${package}",
         sprintf(
-            "use %s %s => '%s', file => __FILE__, stack => [ %s ]",
+            "use %s %s => '%s', file => __FILE__, stack => [ %s ], %s => [qw( %s )], %s => [qw( %s )]",
             $ctx->provided_by,
             outer_package => $package,
             $self->generate_inline_stack($ctx),
+            excluded_keywords   => join(' ', @{ $ctx->excluded_keywords }),
+            additional_keywords => join(' ', @{ $ctx->additional_keywords }),
         ),
     );
 

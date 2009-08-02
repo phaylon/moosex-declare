@@ -30,6 +30,11 @@ sub context_traits { }
 sub setup_for {
     my ($self, $setup_class, %args) = @_;
 
+    # don't set this up if the keyword was excluded
+    return
+        if grep { $_ eq $self->get_identifier } 
+           @{ $args{excluded_keywords} || [] };
+
     # make sure the stack is valid
     my $stack = $args{stack} || [];
     my $ident = $self->get_identifier;

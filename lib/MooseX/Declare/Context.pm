@@ -43,6 +43,20 @@ has caller_file => (
     required    => 1,
 );
 
+has additional_keywords => (
+    is          => 'rw',
+    isa         => 'ArrayRef[Str]',
+    required    => 1,
+    default     => sub { [] },
+);
+
+has excluded_keywords => (
+    is          => 'rw',
+    isa         => 'ArrayRef[Str]',
+    required    => 1,
+    default     => sub { [] },
+);
+
 has preamble_code_parts => (
     is          => 'rw',
     isa         => 'ArrayRef[MooseX::Declare::CodePart]',
@@ -270,6 +284,16 @@ the end of the scope so you can do namespace cleanups and such.
 An C<ArrayRef> that contains the stack of handlers. A keyword that was
 only setup inside a scoped block will have the blockhandler be put in
 the stack.
+
+=head2 excluded_keywords
+
+An C<ArrayRef> of C<Str>s listing the keywords that should not be
+provided.
+
+=head2 additional_keywords
+
+An C<ArrayRef> of C<Str>s listing the additional optional keywords that
+should be provided.
 
 =head1 METHODS
 
